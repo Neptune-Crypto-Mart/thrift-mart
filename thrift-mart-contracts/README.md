@@ -1,22 +1,72 @@
-# Soroban Project
+# thrift-mart-contracts
 
-## Project Structure
+Soroban smart contracts for **Thrift Mart** — a crypto-powered marketplace on
+Stellar (XLM/USDC) for selling pre-loved items at affordable prices, with
+escrow-protected trades.
 
-This repository uses the recommended structure for a Soroban project:
+## Project structure
 
 ```text
 .
 ├── contracts
-│   └── hello_world
-│       ├── src
-│       │   ├── lib.rs
-│       │   └── test.rs
-│       └── Cargo.toml
+│   └── thrift_mart_core
+│       ├── src
+│       │   ├── lib.rs       # crate root, `Contract` struct
+│       │   ├── types.rs     # Listing, Escrow, MarketplaceError
+│       │   ├── admin.rs     # AdminInterface
+│       │   ├── listing.rs   # ListingsInterface
+│       │   └── escrow.rs    # EscrowInterface
+│       └── Cargo.toml
 ├── Cargo.toml
 └── README.md
 ```
 
-- New Soroban contracts can be put in `contracts`, each in their own directory. There is already a `hello_world` contract in there to get you started.
-- If you initialized this project with any other example contracts via `--with-example`, those contracts will be in the `contracts` directory as well.
-- Contracts should have their own `Cargo.toml` files that rely on the top-level `Cargo.toml` workspace for their dependencies.
-- Frontend libraries can be added to the top-level directory as well. If you initialized this project with a frontend template via `--frontend-template` you will have those files already included.
+- New contracts go in `contracts/`, each in its own crate. Contract crates
+  rely on the top-level `Cargo.toml` workspace for shared dependencies
+  (`soroban-sdk`).
+- Frontend and backend live in the sibling
+  [`thrift-mart-web`](../thrift-mart-web) and
+  [`thrift-mart-api`](../thrift-mart-api) directories.
+
+## `thrift_mart_core`
+
+Defines the marketplace's core data types and the trait interfaces
+subsequent contributors implement for `Contract` (via `#[contractimpl]`):
+
+- **`AdminInterface`** — one-time `initialize`, and admin-gated fee
+  configuration.
+- **`ListingsInterface`** — create, fetch, and cancel `Listing`s.
+- **`EscrowInterface`** — open, fund, release, and refund an `Escrow`
+  through its `Pending -> Funded -> Released | Refunded` lifecycle.
+
+Each trait method's authorization and failure-mode expectations are
+documented on the method itself in `src/`. Implement a trait like this:
+
+```rust
+use soroban_sdk::contractimpl;
+
+#[contractimpl]
+impl ListingsInterface for Contract {
+    fn create_listing(
+        env: Env,
+        seller: Address,
+        title: String,
+        price: i128,
+        asset: Address,
+    ) -> Result<u64, MarketplaceError> {
+        // ...
+    }
+    // ...
+}
+```
+
+## Building and testing
+
+```bash
+cd contracts/thrift_mart_core
+make build   # stellar contract build
+make test    # cargo test
+```
+
+Requires the [Stellar CLI](https://developers.stellar.org/docs/tools/stellar-cli)
+(`stellar`) and the `wasm32v1-none` Rust target.
